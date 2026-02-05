@@ -2,12 +2,12 @@
 // 请在 Firebase Console 创建项目后，将配置信息填入此处
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyGCmkWgvpYWDINEav-PhkhpWovyqO7l6p4",
+    authDomain: "wallpaper-16d5f.firebaseapp.com",
+    projectId: "wallpaper-16d5f",
+    storageBucket: "wallpaper-16d5f.firebasestorage.app",
+    messagingSenderId: "906767732559",
+    appId: "1:906767732559:web:4b108de7cb5b28b05df3a"
 };
 
 // Firebase 服务实例（将在初始化后设置）
