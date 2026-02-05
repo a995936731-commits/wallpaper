@@ -590,6 +590,54 @@ class WallpaperGalleryDB {
                 });
             } else {
                 // 正常模式下的点击 - 改进触摸设备的事件处理
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchStartTime = 0;
+
+                // 触摸开始
+                item.addEventListener('touchstart', (e) => {
+                    // 如果触摸了按钮，不记录起始位置
+                    if (e.target.closest('.fit-mode-btn') ||
+                        e.target.closest('.delete-btn')) {
+                        return;
+                    }
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    touchStartTime = Date.now();
+                }, { passive: true });
+
+                // 触摸结束
+                item.addEventListener('touchend', (e) => {
+                    // 如果触摸了按钮，不触发全屏
+                    if (e.target.closest('.fit-mode-btn') ||
+                        e.target.closest('.delete-btn')) {
+                        return;
+                    }
+
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const touchEndY = e.changedTouches[0].clientY;
+                    const touchEndTime = Date.now();
+
+                    // 计算移动距离
+                    const moveX = Math.abs(touchEndX - touchStartX);
+                    const moveY = Math.abs(touchEndY - touchStartY);
+                    const totalMove = Math.sqrt(moveX * moveX + moveY * moveY);
+
+                    // 计算触摸时长
+                    const touchDuration = touchEndTime - touchStartTime;
+
+                    // 判断是否为点击：移动距离小于10px，且触摸时长小于300ms
+                    const isClick = totalMove < 10 && touchDuration < 300;
+
+                    if (isClick) {
+                        // 阻止默认行为，避免触发click事件（防止双重触发）
+                        e.preventDefault();
+                        const index = parseInt(item.dataset.index);
+                        this.openFullscreen(index);
+                    }
+                }, { passive: false });
+
+                // 桌面端的点击事件
                 const openFullscreenHandler = (e) => {
                     // 检查是否点击了按钮或其子元素
                     if (e.target.closest('.fit-mode-btn') ||
@@ -603,18 +651,6 @@ class WallpaperGalleryDB {
                 };
 
                 item.addEventListener('click', openFullscreenHandler);
-                // 同时监听触摸事件以改善移动端体验
-                item.addEventListener('touchend', (e) => {
-                    // 如果触摸了按钮，不触发全屏
-                    if (e.target.closest('.fit-mode-btn') ||
-                        e.target.closest('.delete-btn')) {
-                        return;
-                    }
-                    // 阻止默认行为，避免触发click事件（防止双重触发）
-                    e.preventDefault();
-                    const index = parseInt(item.dataset.index);
-                    this.openFullscreen(index);
-                }, { passive: false });
             }
         });
 
