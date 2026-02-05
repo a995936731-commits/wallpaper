@@ -1,4 +1,4 @@
-// 壁纸管理应用 - IndexedDB 版本（支持大容量）
+// 壁纸管理应用 - IndexedDB 版本（支持大容量 + Firebase 云端同步）
 class WallpaperGalleryDB {
     constructor() {
         this.staticWallpapers = [];
@@ -14,6 +14,7 @@ class WallpaperGalleryDB {
         this.selectedItems = new Set(); // 选中的壁纸ID
         this.storage = new IndexedDBStorage();
         this.eventsbound = false; // 事件绑定标志
+        this.firebaseSync = null; // Firebase 同步实例
 
         this.init();
     }
@@ -27,6 +28,19 @@ class WallpaperGalleryDB {
 
         try {
             await this.storage.init();
+
+            // 初始化 Firebase 云端同步
+            if (window.FirebaseSync) {
+                this.firebaseSync = new window.FirebaseSync(this.storage);
+                const syncEnabled = await this.firebaseSync.initialize();
+
+                if (syncEnabled) {
+                    this.showToast('☁️ 云端同步已启用');
+                    // 执行一次全量同步
+                    await this.firebaseSync.fullSync();
+                }
+            }
+
             await this.loadFromStorage();
             this.render();
             this.updateDateTime();
@@ -216,6 +230,13 @@ class WallpaperGalleryDB {
 
             this.render();
             await this.updateStorageEstimate();
+
+            // 上传到云端（不阻塞，后台执行）
+            if (this.firebaseSync && this.firebaseSync.enabled) {
+                this.firebaseSync.uploadWallpaper(wallpaper).catch(err => {
+                    console.error('云端上传失败，但本地已保存:', err);
+                });
+            }
         } catch (error) {
             console.error('保存壁纸失败:', error);
             this.showToast('保存失败，存储空间可能已满');
@@ -224,6 +245,11 @@ class WallpaperGalleryDB {
 
     async deleteWallpaper(id, type) {
         try {
+            // 先找到要删除的壁纸对象
+            const wallpaper = type === 'image'
+                ? this.staticWallpapers.find(w => w.id === id)
+                : this.dynamicWallpapers.find(w => w.id === id);
+
             await this.storage.deleteWallpaper(id);
 
             if (type === 'image') {
@@ -240,6 +266,13 @@ class WallpaperGalleryDB {
             await this.updateStorageEstimate();
             this.updateSelectedCount();
             this.showToast('壁纸已删除');
+
+            // 从云端删除（不阻塞，后台执行）
+            if (this.firebaseSync && this.firebaseSync.enabled && wallpaper) {
+                this.firebaseSync.deleteWallpaper(wallpaper).catch(err => {
+                    console.error('云端删除失败，但本地已删除:', err);
+                });
+            }
         } catch (error) {
             console.error('删除失败:', error);
             this.showToast('删除失败');
