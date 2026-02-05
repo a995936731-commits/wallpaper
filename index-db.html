@@ -464,36 +464,48 @@
             color: rgba(255, 255, 255, 0.7);
         }
 
-        /* 响应式 */
+        /* 响应式 - 手机竖屏 */
         @media (max-width: 768px) {
             .navbar {
-                padding: 0 15px;
+                padding: 8px 10px;
                 flex-wrap: wrap;
                 height: auto;
-                padding-top: 10px;
-                padding-bottom: 10px;
+                min-height: auto;
             }
 
             .navbar-title {
-                font-size: 1.2rem;
+                font-size: 1rem;
+                width: 100%;
+                margin-bottom: 6px;
+                text-align: center;
             }
 
             .navbar-controls {
-                gap: 8px;
+                gap: 5px;
                 flex-wrap: wrap;
                 width: 100%;
-                margin-top: 10px;
+                justify-content: center;
+            }
+
+            .tab-btn {
+                padding: 5px 10px;
+                font-size: 0.75rem;
+                flex: 0 0 auto;
             }
 
             .storage-display {
-                font-size: 0.8rem;
-                padding: 6px 12px;
-                min-width: 120px;
+                font-size: 0.7rem;
+                padding: 5px 8px;
+                min-width: 100%;
+                order: 10;
+                text-align: center;
+                margin-top: 5px;
             }
 
-            .tab-btn, .upload-btn, .clear-all-btn {
-                padding: 8px 15px;
-                font-size: 0.85rem;
+            .upload-btn, .sync-btn, .batch-delete-btn {
+                padding: 5px 10px;
+                font-size: 0.75rem;
+                flex: 0 0 auto;
             }
 
             .wallpaper-grid {
@@ -515,10 +527,52 @@
             }
 
             .main-content {
-                margin-top: 100px;
+                margin-top: 120px;
             }
 
             /* 移动端按钮常显 */
+            .wallpaper-item .fit-mode-btn,
+            .wallpaper-item .delete-btn {
+                opacity: 1 !important;
+            }
+
+            .wallpaper-item .media-type-badge {
+                opacity: 1;
+            }
+        }
+
+        /* 平板横屏 (768px - 1024px) */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .navbar {
+                padding: 0 20px;
+            }
+
+            .navbar-title {
+                font-size: 1.3rem;
+            }
+
+            .navbar-controls {
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .tab-btn, .upload-btn, .sync-btn, .batch-delete-btn {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+
+            .storage-display {
+                font-size: 0.85rem;
+                padding: 8px 14px;
+                min-width: 130px;
+            }
+
+            .wallpaper-grid {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 18px;
+            }
+
+            /* 平板也让按钮常显 */
             .wallpaper-item .fit-mode-btn,
             .wallpaper-item .delete-btn {
                 opacity: 1 !important;
@@ -554,6 +608,15 @@
             z-index: 10001;
             animation: slideDown 0.3s ease;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 移动端 Toast 位置调整 */
+        @media (max-width: 768px) {
+            .toast {
+                top: 130px;
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
         }
 
         @keyframes slideDown {
