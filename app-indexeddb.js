@@ -539,31 +539,12 @@ class WallpaperGalleryDB {
         }).join('');
 
         grid.querySelectorAll('.wallpaper-item').forEach(item => {
-            // 批量模式下的点击
-            if (this.batchMode) {
-                item.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('delete-btn')) {
-                        return;
-                    }
-                    const wallpaperId = parseFloat(item.dataset.wallpaperId);
-                    this.toggleSelectItem(wallpaperId);
-                });
-            } else {
-                // 正常模式下的点击
-                item.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('fit-mode-btn') ||
-                        e.target.classList.contains('delete-btn')) {
-                        return;
-                    }
-                    const index = parseInt(item.dataset.index);
-                    this.openFullscreen(index);
-                });
-            }
-
+            // 首先为按钮绑定事件（优先级最高）
             const fitModeBtn = item.querySelector('.fit-mode-btn');
             if (fitModeBtn) {
                 fitModeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     const id = parseFloat(fitModeBtn.dataset.id);
                     const type = fitModeBtn.dataset.type;
                     this.changeFitMode(id, type);
@@ -574,12 +555,53 @@ class WallpaperGalleryDB {
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     const id = parseFloat(deleteBtn.dataset.id);
                     const type = deleteBtn.dataset.type;
                     if (confirm('确定要删除这张壁纸吗？')) {
                         this.deleteWallpaper(id, type);
                     }
                 });
+            }
+
+            // 批量模式下的点击
+            if (this.batchMode) {
+                item.addEventListener('click', (e) => {
+                    // 检查是否点击了按钮或其子元素
+                    if (e.target.closest('.delete-btn') ||
+                        e.target.closest('.fit-mode-btn')) {
+                        return;
+                    }
+                    const wallpaperId = parseFloat(item.dataset.wallpaperId);
+                    this.toggleSelectItem(wallpaperId);
+                });
+            } else {
+                // 正常模式下的点击 - 改进触摸设备的事件处理
+                const openFullscreenHandler = (e) => {
+                    // 检查是否点击了按钮或其子元素
+                    if (e.target.closest('.fit-mode-btn') ||
+                        e.target.closest('.delete-btn') ||
+                        e.target.classList.contains('fit-mode-btn') ||
+                        e.target.classList.contains('delete-btn')) {
+                        return;
+                    }
+                    const index = parseInt(item.dataset.index);
+                    this.openFullscreen(index);
+                };
+
+                item.addEventListener('click', openFullscreenHandler);
+                // 同时监听触摸事件以改善移动端体验
+                item.addEventListener('touchend', (e) => {
+                    // 如果触摸了按钮，不触发全屏
+                    if (e.target.closest('.fit-mode-btn') ||
+                        e.target.closest('.delete-btn')) {
+                        return;
+                    }
+                    // 阻止默认行为，避免触发click事件（防止双重触发）
+                    e.preventDefault();
+                    const index = parseInt(item.dataset.index);
+                    this.openFullscreen(index);
+                }, { passive: false });
             }
         });
 

@@ -500,6 +500,28 @@
             .main-content {
                 margin-top: 100px;
             }
+
+            /* 移动端按钮常显 */
+            .wallpaper-item .fit-mode-btn,
+            .wallpaper-item .delete-btn {
+                opacity: 1 !important;
+            }
+
+            .wallpaper-item .media-type-badge {
+                opacity: 1;
+            }
+        }
+
+        /* 触摸设备按钮常显（更精准的检测） */
+        @media (hover: none) and (pointer: coarse) {
+            .wallpaper-item .fit-mode-btn,
+            .wallpaper-item .delete-btn {
+                opacity: 1 !important;
+            }
+
+            .wallpaper-item .media-type-badge {
+                opacity: 1;
+            }
         }
 
         /* 加载提示 */
