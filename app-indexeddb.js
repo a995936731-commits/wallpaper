@@ -14,7 +14,7 @@ class WallpaperGalleryDB {
         this.selectedItems = new Set(); // 选中的壁纸ID
         this.storage = new IndexedDBStorage();
         this.eventsbound = false; // 事件绑定标志
-        this.firebaseSync = null; // Firebase 同步实例
+        this.githubSync = null; // GitHub 云端同步实例
 
         this.init();
     }
@@ -29,15 +29,15 @@ class WallpaperGalleryDB {
         try {
             await this.storage.init();
 
-            // 初始化 Firebase 云端同步
-            if (window.FirebaseSync) {
-                this.firebaseSync = new window.FirebaseSync(this.storage);
-                const syncEnabled = await this.firebaseSync.initialize();
+            // 初始化 GitHub 云端同步
+            if (window.GitHubSync) {
+                this.githubSync = new window.GitHubSync(this.storage);
+                const syncEnabled = await this.githubSync.initialize();
 
                 if (syncEnabled) {
-                    this.showToast('☁️ 云端同步已启用');
-                    // 执行一次全量同步
-                    await this.firebaseSync.fullSync();
+                    this.showToast('☁️ GitHub 云端同步已启用');
+                    // 检查云端更新
+                    await this.checkCloudUpdates();
                 }
             }
 
@@ -102,6 +102,15 @@ class WallpaperGalleryDB {
 
         document.getElementById('importFileInput').addEventListener('change', (e) => {
             this.importData(e);
+        });
+
+        // 云端同步按钮
+        document.getElementById('syncToCloudBtn').addEventListener('click', () => {
+            this.syncToCloud();
+        });
+
+        document.getElementById('syncFromCloudBtn').addEventListener('click', () => {
+            this.syncFromCloud();
         });
 
         const fullscreenContainer = document.getElementById('fullscreenContainer');
@@ -232,10 +241,9 @@ class WallpaperGalleryDB {
             await this.updateStorageEstimate();
 
             // 上传到云端（不阻塞，后台执行）
-            if (this.firebaseSync && this.firebaseSync.enabled) {
-                this.firebaseSync.uploadWallpaper(wallpaper).catch(err => {
-                    console.error('云端上传失败，但本地已保存:', err);
-                });
+            if (this.githubSync && this.githubSync.enabled) {
+                // GitHub 自动同步会在用户点击按钮时执行，不在此处自动上传
+                console.log('壁纸已保存到本地，可通过"同步到云端"按钮上传');
             }
         } catch (error) {
             console.error('保存壁纸失败:', error);
@@ -267,12 +275,7 @@ class WallpaperGalleryDB {
             this.updateSelectedCount();
             this.showToast('壁纸已删除');
 
-            // 从云端删除（不阻塞，后台执行）
-            if (this.firebaseSync && this.firebaseSync.enabled && wallpaper) {
-                this.firebaseSync.deleteWallpaper(wallpaper).catch(err => {
-                    console.error('云端删除失败，但本地已删除:', err);
-                });
-            }
+            // GitHub 云端同步不需要实时删除，用户可手动同步
         } catch (error) {
             console.error('删除失败:', error);
             this.showToast('删除失败');
@@ -994,6 +997,149 @@ class WallpaperGalleryDB {
         } finally {
             // 清空文件选择器
             if (e.target) e.target.value = '';
+        }
+    }
+
+    // 检查云端更新（页面加载时自动调用）
+    async checkCloudUpdates() {
+        if (!this.githubSync || !this.githubSync.enabled) {
+            return;
+        }
+
+        try {
+            const updateInfo = await this.githubSync.checkForUpdates();
+
+            if (!updateInfo) {
+                console.log('无法检查云端更新');
+                return;
+            }
+
+            if (updateInfo.hasUpdate) {
+                const message = `☁️ 检测到云端有更新！\n\n` +
+                    `云端: ${updateInfo.cloudCount} 张壁纸\n` +
+                    `本地: ${updateInfo.localCount} 张壁纸\n` +
+                    `更新时间: ${new Date(updateInfo.cloudDate).toLocaleString('zh-CN')}\n\n` +
+                    `是否立即从云端下载更新？`;
+
+                if (confirm(message)) {
+                    await this.syncFromCloud();
+                }
+            } else {
+                console.log('✅ 本地数据已是最新');
+            }
+        } catch (error) {
+            console.error('检查云端更新失败:', error);
+        }
+    }
+
+    // 同步到云端
+    async syncToCloud() {
+        if (!this.githubSync || !this.githubSync.enabled) {
+            this.showToast('❌ GitHub 同步未启用，请先配置 Token');
+            return;
+        }
+
+        try {
+            this.showToast('⏳ 正在上传到 GitHub...');
+
+            const stats = await this.githubSync.syncToCloud();
+
+            this.showToast(`✅ 同步成功！已上传 ${stats.totalCount} 张壁纸到 GitHub`);
+        } catch (error) {
+            console.error('同步到云端失败:', error);
+            this.showToast('❌ 同步失败，请检查 GitHub Token 配置');
+        }
+    }
+
+    // 从云端同步
+    async syncFromCloud() {
+        if (!this.githubSync || !this.githubSync.enabled) {
+            this.showToast('❌ GitHub 同步未启用');
+            return;
+        }
+
+        try {
+            this.showToast('⏳ 正在从 GitHub 下载...');
+
+            const cloudData = await this.githubSync.syncFromCloud();
+
+            if (!cloudData || !cloudData.wallpapers) {
+                this.showToast('❌ 云端数据无效或不存在');
+                return;
+            }
+
+            // 询问用户是否覆盖现有数据
+            const currentCount = this.staticWallpapers.length + this.dynamicWallpapers.length;
+            const importCount = cloudData.wallpapers.length;
+
+            let shouldMerge = true;
+            if (currentCount > 0) {
+                const message = `当前有 ${currentCount} 张壁纸，云端有 ${importCount} 张壁纸。\n\n` +
+                    `点击"确定"合并数据（保留现有+添加云端新数据）\n` +
+                    `点击"取消"将清空现有数据后导入云端数据`;
+                shouldMerge = confirm(message);
+            }
+
+            // 如果选择不合并，先清空现有数据
+            if (!shouldMerge) {
+                await this.storage.clearWallpapers();
+                this.staticWallpapers = [];
+                this.dynamicWallpapers = [];
+                this.fitModes = {};
+            }
+
+            // 导入云端壁纸数据
+            let successCount = 0;
+            let skipCount = 0;
+
+            for (const wallpaper of cloudData.wallpapers) {
+                try {
+                    // 检查是否已存在（避免重复）
+                    const exists = await this.storage.getAllWallpapers().then(
+                        wallpapers => wallpapers.some(w => w.id === wallpaper.id)
+                    );
+
+                    if (exists && shouldMerge) {
+                        skipCount++;
+                        continue;
+                    }
+
+                    // 保存到 IndexedDB
+                    await this.storage.saveWallpaper(wallpaper);
+
+                    // 添加到内存数组
+                    if (wallpaper.type === 'image') {
+                        this.staticWallpapers.unshift(wallpaper);
+                    } else {
+                        this.dynamicWallpapers.unshift(wallpaper);
+                    }
+
+                    successCount++;
+                } catch (err) {
+                    console.error('导入壁纸失败:', wallpaper.name, err);
+                }
+            }
+
+            // 导入设置
+            if (cloudData.settings?.fitModes) {
+                this.fitModes = { ...this.fitModes, ...cloudData.settings.fitModes };
+                await this.saveSettings();
+            }
+
+            // 刷新界面
+            this.render();
+            await this.updateStorageEstimate();
+
+            // 显示结果
+            let resultMessage = `✅ 从云端同步成功！新增 ${successCount} 张壁纸`;
+            if (skipCount > 0) {
+                resultMessage += `，跳过 ${skipCount} 张重复壁纸`;
+            }
+            this.showToast(resultMessage);
+
+        } catch (error) {
+            console.error('从云端同步失败:', error);
+            this.showToast('❌ 从云端同步失败');
         }
     }
 }

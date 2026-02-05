@@ -664,6 +664,8 @@
             </button>
             <button class="sync-btn" id="exportBtn">💾 导出数据</button>
             <button class="sync-btn" id="importBtn">📥 导入数据</button>
+            <button class="sync-btn" id="syncToCloudBtn">☁️ 同步到云端</button>
+            <button class="sync-btn" id="syncFromCloudBtn">📥 从云端下载</button>
             <button class="batch-delete-btn" id="batchDeleteBtn">批量删除</button>
         </div>
         <input type="file" id="fileInput" accept="image/*,video/*" multiple>
@@ -718,8 +720,7 @@
 
     <!-- IndexedDB 版本（大容量支持） -->
     <script src="indexeddb-storage.js"></script>
-    <script src="firebase-config.js"></script>
-    <script src="firebase-sync.js"></script>
+    <script src="github-sync.js"></script>
     <script src="app-indexeddb.js"></script>
 </body>
 </html>
