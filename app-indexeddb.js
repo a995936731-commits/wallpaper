@@ -258,11 +258,10 @@ class WallpaperGalleryDB {
             this.render();
             await this.updateStorageEstimate();
 
-            // 自动同步到云端（后台执行，不阻塞）
+            // 同步到云端（等待完成，确保数据安全）
             if (this.cloudSync && this.cloudSync.enabled) {
-                this.cloudSync.autoSyncToCloud().catch(err => {
-                    console.error('后台同步失败:', err);
-                });
+                await this.cloudSync.autoSyncToCloud();
+                console.log('✅ 壁纸已同步到云端');
             }
         } catch (error) {
             console.error('保存壁纸失败:', error);
@@ -294,11 +293,10 @@ class WallpaperGalleryDB {
             this.updateSelectedCount();
             this.showToast('壁纸已删除');
 
-            // 自动同步到云端（后台执行）
+            // 同步到云端（等待完成，确保数据安全）
             if (this.cloudSync && this.cloudSync.enabled) {
-                this.cloudSync.autoSyncToCloud().catch(err => {
-                    console.error('后台同步失败:', err);
-                });
+                await this.cloudSync.autoSyncToCloud();
+                console.log('✅ 删除已同步到云端');
             }
         } catch (error) {
             console.error('删除失败:', error);
@@ -770,6 +768,11 @@ class WallpaperGalleryDB {
     async saveSettings() {
         try {
             await this.storage.saveSetting('fitModes', this.fitModes);
+
+            // 同步到云端（等待完成，确保设置保存）
+            if (this.cloudSync && this.cloudSync.enabled) {
+                await this.cloudSync.autoSyncToCloud();
+            }
         } catch (error) {
             console.error('保存设置失败:', error);
         }
