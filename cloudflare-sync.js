@@ -143,13 +143,17 @@ class CloudflareSync {
             };
 
             // 2. 上传到云端（等待完成，确保数据安全）
-            await this.uploadToCloud(exportData);
+            const uploadSuccess = await this.uploadToCloud(exportData);
 
-            return exportData.stats;
+            if (uploadSuccess) {
+                return { success: true, stats: exportData.stats };
+            } else {
+                return { success: false, stats: exportData.stats };
+            }
         } catch (error) {
             console.error('❌ 自动同步失败:', error);
-            // 静默失败
-            return null;
+            // 返回失败状态
+            return { success: false, error: error.message };
         }
     }
 

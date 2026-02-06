@@ -15,6 +15,7 @@ class WallpaperGalleryDB {
         this.storage = new IndexedDBStorage();
         this.eventsbound = false; // 事件绑定标志
         this.cloudSync = null; // Cloudflare 云端同步实例
+        this.hasUnsyncedSettings = false; // 是否有未同步的设置
 
         this.init();
     }
@@ -98,6 +99,15 @@ class WallpaperGalleryDB {
                 const tab = e.target.closest('.tab-btn').dataset.tab;
                 this.switchTab(tab);
             });
+        });
+
+        // 页面关闭时同步未保存的设置
+        window.addEventListener('beforeunload', async (e) => {
+            if (this.hasUnsyncedSettings && this.cloudSync && this.cloudSync.enabled) {
+                // 同步设置到云端
+                await this.cloudSync.autoSyncToCloud();
+                console.log('✅ 页面关闭前已同步设置到云端');
+            }
         });
 
         // 批量删除按钮
@@ -260,12 +270,17 @@ class WallpaperGalleryDB {
 
             // 同步到云端（等待完成，确保数据安全）
             if (this.cloudSync && this.cloudSync.enabled) {
-                await this.cloudSync.autoSyncToCloud();
-                console.log('✅ 壁纸已同步到云端');
+                const syncResult = await this.cloudSync.autoSyncToCloud();
+                if (syncResult && syncResult.success) {
+                    console.log('✅ 壁纸已同步到云端');
+                } else {
+                    console.error('⚠️ 云端同步失败，但本地已保存');
+                    this.showToast('⚠️ 本地已保存，但云端同步失败');
+                }
             }
         } catch (error) {
             console.error('保存壁纸失败:', error);
-            this.showToast('保存失败，存储空间可能已满');
+            this.showToast('❌ 保存失败: ' + error.message);
         }
     }
 
@@ -774,12 +789,11 @@ class WallpaperGalleryDB {
 
     async saveSettings() {
         try {
+            // 只保存到本地，不立即同步云端（避免延迟）
             await this.storage.saveSetting('fitModes', this.fitModes);
 
-            // 同步到云端（等待完成，确保设置保存）
-            if (this.cloudSync && this.cloudSync.enabled) {
-                await this.cloudSync.autoSyncToCloud();
-            }
+            // 标记有未同步的设置（供后续同步使用）
+            this.hasUnsyncedSettings = true;
         } catch (error) {
             console.error('保存设置失败:', error);
         }
