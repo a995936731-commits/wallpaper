@@ -1,0 +1,217 @@
+// 七牛云对象存储同步模块（前端直传方案）
+class QiniuSync {
+    constructor(localDB) {
+        this.localDB = localDB;
+        this.enabled = true;
+
+        // 七牛云配置 - 请在部署后修改
+        this.bucket = 'wallpaper-gallery'; // 你的空间名称
+        this.domain = ''; // 你的 CDN 域名，格式：http://your-domain.com
+
+        // 获取上传凭证的 API
+        this.tokenUrl = window.location.origin + '/api/qiniu-token';
+
+        this.lastSyncTime = null;
+    }
+
+    async initialize() {
+        try {
+            console.log('✅ 七牛云存储已启用（实时同步模式）');
+            console.log('📦 存储空间:', this.bucket);
+
+            // 检查配置
+            if (!this.domain) {
+                console.warn('⚠️ 请配置七牛云 CDN 域名');
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('❌ 七牛云同步初始化失败:', error);
+            return false;
+        }
+    }
+
+    // 获取上传凭证
+    async getUploadToken(key) {
+        try {
+            const response = await fetch(`${this.tokenUrl}?key=${encodeURIComponent(key)}`);
+            if (!response.ok) {
+                throw new Error('获取上传凭证失败');
+            }
+            const data = await response.json();
+            return data.token;
+        } catch (error) {
+            console.error('❌ 获取上传凭证失败:', error);
+            throw error;
+        }
+    }
+
+    // 上传文件到七牛云（前端直传）
+    async uploadFileToQiniu(wallpaper) {
+        try {
+            if (wallpaper.qiniuUrl) {
+                console.log('ℹ️ 文件已存在于云端:', wallpaper.id);
+                return wallpaper.qiniuUrl;
+            }
+
+            // 将 Base64 转换为 Blob
+            const base64Data = wallpaper.data || wallpaper.url;
+            const response = await fetch(base64Data);
+            const blob = await response.blob();
+
+            const fileName = `wallpapers/${wallpaper.id}.${wallpaper.type === 'video' ? 'mp4' : 'jpg'}`;
+
+            // 获取上传凭证
+            const token = await this.getUploadToken(fileName);
+
+            // 构建上传表单
+            const formData = new FormData();
+            formData.append('key', fileName);
+            formData.append('token', token);
+            formData.append('file', blob);
+
+            console.log('🔄 正在上传文件到七牛云:', wallpaper.id, `(${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+
+            // 直传到七牛云
+            const uploadResponse = await fetch('https://upload.qiniup.com', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('上传失败');
+            }
+
+            const result = await uploadResponse.json();
+            const fileUrl = `${this.domain}/${result.key}`;
+
+            console.log('✅ 文件已上传到七牛云:', fileUrl);
+            return fileUrl;
+        } catch (error) {
+            console.error('❌ 文件上传失败:', error);
+            throw error;
+        }
+    }
+
+    // 从七牛云下载元数据
+    async downloadFromCloud() {
+        try {
+            console.log('🔄 开始从七牛云下载数据...');
+
+            const metadataUrl = `${this.domain}/metadata.json?t=${Date.now()}`;
+            const response = await fetch(metadataUrl, {
+                cache: 'no-cache'
+            });
+
+            if (!response.ok) {
+                if (response.status === 404 || response.status === 612) {
+                    console.log('ℹ️ 云端暂无数据');
+                    return null;
+                }
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('✅ 已从七牛云下载数据，共', data.wallpapers?.length || 0, '张壁纸');
+
+            return data;
+        } catch (error) {
+            console.error('❌ 从云端下载失败:', error);
+            return null;
+        }
+    }
+
+    // 自动同步到云端
+    async autoSyncToCloud() {
+        try {
+            const allWallpapers = await this.localDB.getAllWallpapers();
+            const fitModes = await this.localDB.getSetting('fitModes') || {};
+
+            console.log('🔄 开始同步文件到七牛云...');
+            const wallpapersWithQiniuUrls = [];
+
+            for (const wallpaper of allWallpapers) {
+                try {
+                    if (!wallpaper.qiniuUrl) {
+                        const qiniuUrl = await this.uploadFileToQiniu(wallpaper);
+                        wallpapersWithQiniuUrls.push({
+                            ...wallpaper,
+                            qiniuUrl: qiniuUrl,
+                            data: undefined,
+                            url: undefined
+                        });
+
+                        await this.localDB.saveWallpaper({
+                            ...wallpaper,
+                            qiniuUrl: qiniuUrl
+                        });
+                    } else {
+                        wallpapersWithQiniuUrls.push({
+                            ...wallpaper,
+                            data: undefined,
+                            url: undefined
+                        });
+                    }
+                } catch (error) {
+                    console.error('❌ 上传文件失败，跳过:', wallpaper.id, error);
+                }
+            }
+
+            // 上传元数据
+            const metadata = {
+                version: '2.0',
+                exportDate: new Date().toISOString(),
+                wallpapers: wallpapersWithQiniuUrls,
+                settings: { fitModes },
+                stats: {
+                    staticCount: wallpapersWithQiniuUrls.filter(w => w.type === 'image').length,
+                    dynamicCount: wallpapersWithQiniuUrls.filter(w => w.type === 'video').length,
+                    totalCount: wallpapersWithQiniuUrls.length
+                }
+            };
+
+            // 将元数据上传为 JSON 文件
+            const token = await this.getUploadToken('metadata.json');
+            const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+
+            const formData = new FormData();
+            formData.append('key', 'metadata.json');
+            formData.append('token', token);
+            formData.append('file', metadataBlob);
+
+            const uploadResponse = await fetch('https://upload.qiniup.com', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                throw new Error('元数据上传失败');
+            }
+
+            console.log('✅ 元数据已同步到七牛云');
+            return { success: true, stats: metadata.stats };
+        } catch (error) {
+            console.error('❌ 自动同步失败:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async getCloudStats() {
+        try {
+            const cloudData = await this.downloadFromCloud();
+            if (!cloudData) return null;
+
+            return {
+                totalCount: cloudData.stats?.totalCount || cloudData.wallpapers.length,
+                exportDate: cloudData.exportDate,
+                version: cloudData.version
+            };
+        } catch (error) {
+            console.error('❌ 获取云端统计失败:', error);
+            return null;
+        }
+    }
+}
+
+window.QiniuSync = QiniuSync;
