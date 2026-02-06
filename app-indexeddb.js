@@ -40,14 +40,14 @@ class WallpaperGalleryDB {
                     const cloudData = await this.cloudSync.downloadFromCloud();
 
                     if (cloudData && cloudData.wallpapers) {
-                        // 使用云端数据，将 blobUrl 转换为可显示的 url
+                        // 使用云端数据，将 qiniuUrl 转换为可显示的 url
                         console.log('✅ 使用云端数据，共', cloudData.wallpapers.length, '张壁纸');
 
-                        // 处理壁纸数据：将 blobUrl 赋值给 url 字段用于显示
+                        // 处理壁纸数据：将 qiniuUrl 赋值给 url 字段用于显示
                         const wallpapers = cloudData.wallpapers.map(w => ({
                             ...w,
-                            url: w.blobUrl || w.url || w.data, // 优先使用 blobUrl
-                            data: w.blobUrl || w.data || w.url  // 兼容旧版本
+                            url: w.qiniuUrl || w.url || w.data, // 优先使用 qiniuUrl
+                            data: w.qiniuUrl || w.data || w.url  // 兼容旧版本
                         }));
 
                         this.staticWallpapers = wallpapers.filter(w => w.type === 'image');
