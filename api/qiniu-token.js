@@ -14,9 +14,9 @@ module.exports = async (req, res) => {
     try {
         const { key } = req.query;
 
-        // 七牛云配置（从环境变量读取）
-        const accessKey = process.env.QINIU_ACCESS_KEY || 'KPPt1MipaBOYrQCH_2IXfaaxy0SbhuLXFoyflYEP';
-        const secretKey = process.env.QINIU_SECRET_KEY || 'TnTMZkxk1iOtnOu-bDrPtkFHp87ycKCs7JD07M5u';
+        // 七牛云配置（从环境变量读取，并去除可能的换行符）
+        const accessKey = (process.env.QINIU_ACCESS_KEY || 'KPPt1MipaBOYrQCH_2IXfaaxy0SbhuLXFoyflYEP').trim();
+        const secretKey = (process.env.QINIU_SECRET_KEY || 'TnTMZkxk1iOtnOu-bDrPtkFHp87ycKCs7JD07M5u').trim();
         const bucket = 'wallpaper-gallery';
 
         // 生成上传策略
