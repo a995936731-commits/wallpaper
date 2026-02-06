@@ -29,7 +29,7 @@ class QiniuSync {
     }
 
     // 生成上传 Token（前端生成）
-    generateUploadToken(key) {
+    async generateUploadToken(key) {
         try {
             const putPolicy = {
                 scope: `${this.bucket}:${key}`,
@@ -37,7 +37,7 @@ class QiniuSync {
             };
 
             const encodedPutPolicy = this.base64Encode(JSON.stringify(putPolicy));
-            const sign = this.hmacSha1(encodedPutPolicy, this.secretKey);
+            const sign = await this.hmacSha1(encodedPutPolicy, this.secretKey);
             const encodedSign = this.base64Encode(sign);
             const uploadToken = `${this.accessKey}:${encodedSign}:${encodedPutPolicy}`;
 
@@ -55,11 +55,32 @@ class QiniuSync {
             .replace(/\//g, '_');
     }
 
-    // HMAC-SHA1 签名
-    // HMAC-SHA1 签名（使用 crypto-js）
-    hmacSha1(message, secret) {
-        const hash = CryptoJS.HmacSHA1(message, secret);
-        return CryptoJS.enc.Latin1.stringify(hash);
+    // HMAC-SHA1 签名（使用原生实现，不依赖外部库）
+    async hmacSha1(message, secret) {
+        // 将字符串转换为字节数组
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(secret);
+        const messageData = encoder.encode(message);
+
+        // 导入密钥
+        const key = await crypto.subtle.importKey(
+            'raw',
+            keyData,
+            { name: 'HMAC', hash: 'SHA-1' },
+            false,
+            ['sign']
+        );
+
+        // 计算 HMAC
+        const signature = await crypto.subtle.sign('HMAC', key, messageData);
+
+        // 转换为 Latin1 字符串（与七牛云兼容）
+        const bytes = new Uint8Array(signature);
+        let latin1 = '';
+        for (let i = 0; i < bytes.length; i++) {
+            latin1 += String.fromCharCode(bytes[i]);
+        }
+        return latin1;
     }
 
     // 上传文件到七牛云
