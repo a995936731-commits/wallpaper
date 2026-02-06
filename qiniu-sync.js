@@ -33,26 +33,31 @@ class QiniuSync {
         try {
             // 使用 bucket 级别的 scope（更宽松）
             const putPolicy = {
-                scope: this.bucket,  // 改为只指定 bucket，不指定 key
-                deadline: Math.floor(Date.now() / 1000) + 3600,
-                returnBody: '{"key":"$(key)","hash":"$(etag)","size":$(fsize)}'
+                scope: this.bucket,
+                deadline: Math.floor(Date.now() / 1000) + 3600
             };
 
-            console.log('🔐 生成上传凭证:', { bucket: this.bucket, key, deadline: putPolicy.deadline });
+            console.log('🔐 生成上传凭证 - 原始策略:', putPolicy);
 
-            // 1. 将 putPolicy 转为 JSON 并 Base64 编码
-            const encodedPutPolicy = this.utf8ToBase64(JSON.stringify(putPolicy));
+            // 1. 将 putPolicy 转为 JSON（紧凑格式）
+            const policyJson = JSON.stringify(putPolicy);
+            console.log('📝 策略 JSON:', policyJson);
 
-            // 2. 对 encodedPutPolicy 进行 HMAC-SHA1 签名
+            // 2. Base64 编码
+            const encodedPutPolicy = this.utf8ToBase64(policyJson);
+            console.log('📦 编码后的策略:', encodedPutPolicy);
+
+            // 3. 对 encodedPutPolicy 进行 HMAC-SHA1 签名
             const signatureBuffer = await this.hmacSha1(encodedPutPolicy, this.secretKey);
 
-            // 3. 将签名结果 Base64 编码
+            // 4. 将签名结果 Base64 编码
             const encodedSign = this.base64UrlSafeEncode(signatureBuffer);
+            console.log('🔑 签名:', encodedSign);
 
-            // 4. 拼接最终 token
+            // 5. 拼接最终 token
             const uploadToken = `${this.accessKey}:${encodedSign}:${encodedPutPolicy}`;
+            console.log('✅ 完整 Token:', uploadToken.substring(0, 100) + '...');
 
-            console.log('✅ 上传凭证已生成');
             return uploadToken;
         } catch (error) {
             console.error('❌ 生成上传凭证失败:', error);
