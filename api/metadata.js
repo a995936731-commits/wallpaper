@@ -1,8 +1,8 @@
-// Vercel Edge Function - 壁纸元数据管理（使用 Blob 存储 JSON）
+// Vercel Serverless Function - 壁纸元数据管理（使用 Blob 存储 JSON）
 import { put, head } from '@vercel/blob';
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs',
 };
 
 // CORS 头

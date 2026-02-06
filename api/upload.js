@@ -1,8 +1,8 @@
-// Vercel Edge Function - 上传壁纸文件到 Blob
+// Vercel Serverless Function - 上传壁纸文件到 Blob
 import { put } from '@vercel/blob';
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs',
   maxDuration: 60, // 最大 60 秒，支持大文件上传
 };
 

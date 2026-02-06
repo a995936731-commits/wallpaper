@@ -1,8 +1,8 @@
-// Vercel Edge Function - 删除 Blob 文件
+// Vercel Serverless Function - 删除 Blob 文件
 import { del } from '@vercel/blob';
 
 export const config = {
-  runtime: 'edge',
+  runtime: 'nodejs',
 };
 
 // CORS 头
