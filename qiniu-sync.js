@@ -4,9 +4,9 @@ class QiniuSync {
         this.localDB = localDB;
         this.enabled = true;
 
-        // 七牛云配置 - 请在部署后修改
+        // 七牛云配置
         this.bucket = 'wallpaper-gallery'; // 你的空间名称
-        this.domain = ''; // 你的 CDN 域名，格式：http://your-domain.com
+        this.domain = 'http://wallpaper-gallery.s3.cn-south-1.qiniucs.com'; // CDN 域名
 
         // 获取上传凭证的 API
         this.tokenUrl = window.location.origin + '/api/qiniu-token';
