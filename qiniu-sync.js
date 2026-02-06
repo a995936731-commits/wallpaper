@@ -36,11 +36,14 @@ class QiniuSync {
                 deadline: Math.floor(Date.now() / 1000) + 3600, // 1小时有效期
             };
 
+            console.log('🔐 生成上传凭证:', { bucket: this.bucket, key, deadline: putPolicy.deadline });
+
             const encodedPutPolicy = this.base64Encode(JSON.stringify(putPolicy));
             const sign = await this.hmacSha1(encodedPutPolicy, this.secretKey);
             const encodedSign = this.base64Encode(sign);
             const uploadToken = `${this.accessKey}:${encodedSign}:${encodedPutPolicy}`;
 
+            console.log('✅ 上传凭证已生成');
             return uploadToken;
         } catch (error) {
             console.error('❌ 生成上传凭证失败:', error);
@@ -48,11 +51,12 @@ class QiniuSync {
         }
     }
 
-    // Base64 编码
+    // Base64 编码（URL Safe，移除填充符）
     base64Encode(str) {
         return btoa(unescape(encodeURIComponent(str)))
             .replace(/\+/g, '-')
-            .replace(/\//g, '_');
+            .replace(/\//g, '_')
+            .replace(/=/g, '');  // 移除填充符
     }
 
     // HMAC-SHA1 签名（使用原生实现，不依赖外部库）
