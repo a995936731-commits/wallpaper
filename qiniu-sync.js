@@ -28,14 +28,22 @@ class QiniuSync {
         try {
             console.log('🔐 请求后端生成上传凭证:', key);
 
+            // 构建 API URL
+            const apiUrl = `/api/qiniu-token?key=${encodeURIComponent(key)}`;
+            console.log('📡 API URL:', apiUrl);
+
             // 调用后端 API 生成 token
-            const response = await fetch(`/api/qiniu-token?key=${encodeURIComponent(key)}`);
+            const response = await fetch(apiUrl);
+            console.log('📥 API 响应状态:', response.status, response.statusText);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
+                const errorText = await response.text();
+                console.error('❌ API 错误响应:', errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
             const data = await response.json();
+            console.log('📦 API 返回数据:', data);
 
             if (!data.success || !data.token) {
                 throw new Error('获取 token 失败');
