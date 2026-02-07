@@ -1,5 +1,5 @@
-// Vercel Serverless Function - 生成七牛云上传 Token
-const crypto = require('crypto');
+// Vercel Serverless Function - 生成七牛云上传 Token (使用官方 SDK)
+const qiniu = require('qiniu');
 
 module.exports = async (req, res) => {
     // 允许跨域
@@ -14,31 +14,19 @@ module.exports = async (req, res) => {
     try {
         const { key } = req.query;
 
-        // 七牛云配置（从环境变量读取，并去除可能的换行符）
+        // 七牛云配置
         const accessKey = (process.env.QINIU_ACCESS_KEY || 'KPPt1MipaBOYrQCH_2IXfaaxy0SbhuLXFoyflYEP').trim();
         const secretKey = (process.env.QINIU_SECRET_KEY || 'TnTMZkxk1iOtnOu-bDrPtkFHp87ycKCs7JD07M5u').trim();
         const bucket = 'wallpaper-gallery';
 
-        // 生成上传策略
-        const putPolicy = {
+        // 使用官方 SDK 生成 token
+        const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
+        const options = {
             scope: bucket,
-            deadline: Math.floor(Date.now() / 1000) + 3600, // 1小时有效
+            expires: 3600 // 1小时
         };
-
-        // 编码策略
-        const encodedPutPolicy = urlSafeBase64Encode(JSON.stringify(putPolicy));
-
-        // HMAC-SHA1 签名
-        const sign = crypto
-            .createHmac('sha1', secretKey)
-            .update(encodedPutPolicy)
-            .digest();
-
-        // Base64 编码签名
-        const encodedSign = urlSafeBase64Encode(sign);
-
-        // 拼接 token
-        const uploadToken = `${accessKey}:${encodedSign}:${encodedPutPolicy}`;
+        const putPolicy = new qiniu.rs.PutPolicy(options);
+        const uploadToken = putPolicy.uploadToken(mac);
 
         res.status(200).json({
             success: true,
@@ -53,13 +41,3 @@ module.exports = async (req, res) => {
         });
     }
 };
-
-// URL Safe Base64 编码
-function urlSafeBase64Encode(data) {
-    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf-8');
-    return buffer
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
-}
