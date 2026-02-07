@@ -39,12 +39,46 @@ class WallpaperGalleryDB {
                 const syncEnabled = await this.cloudSync.initialize();
 
                 if (syncEnabled) {
-                    // 尝试从云端下载最新数据（后台执行，不阻塞）
-                    this.cloudSync.downloadFromCloud().then(cloudData => {
+                    // 尝试从云端下载最新数据
+                    this.cloudSync.downloadFromCloud().then(async cloudData => {
                         if (cloudData && cloudData.wallpapers && cloudData.wallpapers.length > 0) {
                             console.log('✅ 云端数据可用，共', cloudData.wallpapers.length, '张壁纸');
-                            console.log('ℹ️ 云端数据已备份，当前使用本地数据');
-                            // 云端数据作为备份，不立即替换本地数据
+
+                            // 如果本地没有数据，使用云端数据
+                            const localCount = this.wallpapers.static.length + this.wallpapers.dynamic.length;
+                            if (localCount === 0) {
+                                console.log('📥 本地无数据，正在从云端恢复...');
+
+                                // 将云端壁纸分类并保存到本地
+                                for (const wallpaper of cloudData.wallpapers) {
+                                    // 使用 cloudUrl 作为显示源
+                                    const localWallpaper = {
+                                        ...wallpaper,
+                                        url: wallpaper.cloudUrl || wallpaper.url,
+                                        src: wallpaper.cloudUrl || wallpaper.src
+                                    };
+
+                                    if (wallpaper.type === 'video') {
+                                        this.wallpapers.dynamic.push(localWallpaper);
+                                    } else {
+                                        this.wallpapers.static.push(localWallpaper);
+                                    }
+
+                                    // 保存到 IndexedDB
+                                    await this.storage.saveWallpaper(localWallpaper);
+                                }
+
+                                // 恢复设置
+                                if (cloudData.settings && cloudData.settings.fitModes) {
+                                    await this.storage.saveSetting('fitModes', cloudData.settings.fitModes);
+                                    this.fitModes = cloudData.settings.fitModes;
+                                }
+
+                                console.log('✅ 云端数据已恢复到本地');
+                                this.render(); // 重新渲染界面
+                            } else {
+                                console.log('ℹ️ 本地已有数据，保持当前状态');
+                            }
                         }
                     }).catch(err => {
                         console.log('ℹ️ 云端同步暂不可用，继续使用本地数据');
