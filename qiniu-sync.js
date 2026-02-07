@@ -70,8 +70,8 @@ class QiniuSync {
             }
             const encodedSign = btoa(binary)
                 .replace(/\+/g, '-')
-                .replace(/\//g, '_')
-                .replace(/=/g, '');
+                .replace(/\//g, '_');
+                // 注意：保留 = 号（七牛云 SDK 不移除 =）
 
             console.log('🔑 签名:', encodedSign);
 
