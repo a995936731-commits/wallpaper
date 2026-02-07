@@ -6,7 +6,7 @@ class QiniuSync {
 
         // 七牛云配置
         this.bucket = 'wallpaper-gallery';
-        this.domain = 'https://wallpaper-gallery.s3.cn-south-1.qiniucs.com';
+        this.domain = 'https://ta17be825.hn-bkt.clouddn.com';  // 使用七牛云 CDN 域名，支持公开访问
 
         this.lastSyncTime = null;
     }
