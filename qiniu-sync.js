@@ -114,9 +114,9 @@ class QiniuSync {
             const token = await this.generateUploadToken(fileName);
 
             const formData = new FormData();
+            formData.append('token', token);  // token 必须在最前面
             formData.append('key', fileName);
-            formData.append('token', token);
-            formData.append('file', blob);
+            formData.append('file', blob, fileName.split('/').pop());  // 指定文件名
 
             console.log('🔄 正在上传文件到七牛云:', wallpaper.id, `(${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
 
@@ -231,9 +231,9 @@ class QiniuSync {
             const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
 
             const formData = new FormData();
+            formData.append('token', token);  // token 必须在最前面
             formData.append('key', 'metadata.json');
-            formData.append('token', token);
-            formData.append('file', metadataBlob);
+            formData.append('file', metadataBlob, 'metadata.json');
 
             const uploadResponse = await fetch('https://up-z2.qiniup.com', {
                 method: 'POST',
