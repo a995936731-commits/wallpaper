@@ -100,6 +100,13 @@ class QiniuSync {
             }
 
             const base64Data = wallpaper.data || wallpaper.url;
+
+            // 检查数据是否存在
+            if (!base64Data) {
+                console.warn('⚠️ 壁纸数据不存在，跳过上传:', wallpaper.id);
+                return null;
+            }
+
             const response = await fetch(base64Data);
             const blob = await response.blob();
 
@@ -141,16 +148,24 @@ class QiniuSync {
             console.log('🔄 开始从七牛云下载数据...');
 
             const metadataUrl = `${this.domain}/metadata.json?t=${Date.now()}`;
+            console.log('📡 请求 URL:', metadataUrl);
+
             const response = await fetch(metadataUrl, {
                 cache: 'no-cache'
             });
+
+            console.log('📥 响应状态:', response.status, response.statusText);
 
             if (!response.ok) {
                 if (response.status === 404 || response.status === 612) {
                     console.log('ℹ️ 云端暂无数据');
                     return null;
                 }
-                throw new Error(`HTTP ${response.status}`);
+
+                // 尝试读取错误详情
+                const errorText = await response.text();
+                console.error('❌ 七牛云返回错误:', errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
             const data = await response.json();
