@@ -45,7 +45,7 @@ class WallpaperGalleryDB {
                             console.log('✅ 云端数据可用，共', cloudData.wallpapers.length, '张壁纸');
 
                             // 如果本地没有数据，使用云端数据
-                            const localCount = this.wallpapers.static.length + this.wallpapers.dynamic.length;
+                            const localCount = this.staticWallpapers.length + this.dynamicWallpapers.length;
                             if (localCount === 0) {
                                 console.log('📥 本地无数据，正在从云端恢复...');
 
@@ -59,9 +59,9 @@ class WallpaperGalleryDB {
                                     };
 
                                     if (wallpaper.type === 'video') {
-                                        this.wallpapers.dynamic.push(localWallpaper);
+                                        this.dynamicWallpapers.push(localWallpaper);
                                     } else {
-                                        this.wallpapers.static.push(localWallpaper);
+                                        this.staticWallpapers.push(localWallpaper);
                                     }
 
                                     // 保存到 IndexedDB
