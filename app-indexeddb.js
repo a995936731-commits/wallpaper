@@ -57,7 +57,7 @@ class WallpaperGalleryDB {
                                 // 2. 云端时间更新 AND 云端数量 >= 本地数量（防止旧数据覆盖新数据）
                                 const shouldSync = localCount === 0 || (cloudDate > lastSyncDate && cloudCount >= localCount);
 
-                                if (shouldSync) {
+
                                 console.log('🔍 同步条件检查:', {
                                     shouldSync,
                                     localCount,
@@ -65,6 +65,7 @@ class WallpaperGalleryDB {
                                     cloudDate: new Date(cloudDate).toISOString(),
                                     lastSyncDate: new Date(lastSyncDate).toISOString()
                                 });
+                                if (shouldSync) {
                                     console.log('☁️ 云�数据较新，正在同步...', {
                                         cloudCount,
                                         localCount,
