@@ -503,6 +503,9 @@ class WallpaperGalleryDB {
         const selectedIds = Array.from(this.selectedItems);
 
         try {
+            // 步骤 1: 删除本地数据
+            this.showToast(`🗑️ 正在删除 ${count} 张壁纸...`, true);
+
             // 删除 IndexedDB 中的数据
             for (const id of selectedIds) {
                 await this.storage.deleteWallpaper(id);
@@ -518,10 +521,29 @@ class WallpaperGalleryDB {
             this.render();
             await this.updateStorageEstimate();
             this.updateSelectedCount();
-            this.showToast(`已删除 ${count} 张壁纸`);
+
+            // 步骤 2: 本地删除成功
+            this.showToast(`✅ 已删除 ${count} 张壁纸`);
+
+            // 步骤 3: 同步到云端（异步）
+            if (this.cloudSync && this.cloudSync.enabled) {
+                setTimeout(() => {
+                    this.showToast('☁️ 正在同步到云端...', true);
+                    this.cloudSync.autoSyncToCloud().then(syncResult => {
+                        if (syncResult && syncResult.success) {
+                            this.showToast('✅ 云端同步成功');
+                        } else {
+                            this.showToast('⚠️ 云端同步失败');
+                        }
+                    }).catch(err => {
+                        console.error('云端同步失败:', err);
+                        this.showToast('⚠️ 云端同步失败');
+                    });
+                }, 500);
+            }
         } catch (error) {
             console.error('批量删除失败:', error);
-            this.showToast('批量删除失败');
+            this.showToast('❌ 批量删除失败');
         }
     }
 
