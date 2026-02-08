@@ -1044,34 +1044,56 @@ class WallpaperGalleryDB {
 
     async updateStorageEstimate() {
         try {
+            // 获取本地存储信息
             const estimate = await this.storage.getStorageEstimate();
-            const usageMB = (estimate.usage || 0) / 1024 / 1024;
-            let quotaMB = (estimate.quota || 0) / 1024 / 1024;
+            const localUsageMB = (estimate.usage || 0) / 1024 / 1024;
+            let localQuotaMB = (estimate.quota || 0) / 1024 / 1024;
 
             // 如果 quota 为 0 或异常小，使用浏览器默认估算值
-            if (quotaMB < 100) {
-                // Chrome/Edge 通常有几十 GB，设置一个合理的默认值
-                quotaMB = 50000; // 50GB
+            if (localQuotaMB < 100) {
+                localQuotaMB = 50000; // 50GB
+            }
+
+            // 获取云端存储信息
+            let cloudUsageMB = 0;
+            const cloudQuotaMB = 1024; // Supabase 免费版 1GB
+
+            if (this.cloudSync && this.cloudSync.enabled) {
+                try {
+                    const cloudData = await this.cloudSync.downloadFromCloud();
+                    if (cloudData && cloudData.wallpapers) {
+                        // 估算云端使用量（从元数据中统计）
+                        cloudUsageMB = cloudData.stats?.totalCount ? cloudData.stats.totalCount * 2 : 0; // 粗略估算每张图2MB
+                    }
+                } catch (err) {
+                    console.log('无法获取云端容量信息');
+                }
             }
 
             const storageDisplay = document.getElementById('storageDisplay');
             if (storageDisplay) {
-                const percent = (usageMB / quotaMB) * 100;
-                const color = percent > 80 ? '#ff4757' : percent > 50 ? '#ffa502' : '#5cd85c';
+                const localPercent = (localUsageMB / localQuotaMB) * 100;
+                const cloudPercent = (cloudUsageMB / cloudQuotaMB) * 100;
+
+                const localColor = localPercent > 80 ? '#ff4757' : localPercent > 50 ? '#ffa502' : '#5cd85c';
+                const cloudColor = cloudPercent > 80 ? '#ff4757' : cloudPercent > 50 ? '#ffa502' : '#5cd85c';
 
                 storageDisplay.innerHTML = `
-                    <span style="color: ${color}">💾 ${usageMB.toFixed(2)} MB</span>
-                    <span style="opacity: 0.7">/ ${quotaMB.toFixed(0)} MB</span>
+                    <span style="color: ${localColor}">💾 ${localUsageMB.toFixed(2)} MB</span>
+                    <span style="opacity: 0.5; font-size: 0.8em">/</span>
+                    <span style="color: ${cloudColor}">☁️ ${cloudUsageMB.toFixed(0)} MB</span>
+                    <span style="opacity: 0.7; font-size: 0.85em">/ ${cloudQuotaMB} MB</span>
                 `;
             }
         } catch (error) {
             console.error('获取存储信息失败:', error);
-            // 即使失败也显示默认值
             const storageDisplay = document.getElementById('storageDisplay');
             if (storageDisplay) {
                 storageDisplay.innerHTML = `
                     <span style="color: #5cd85c">💾 0.00 MB</span>
-                    <span style="opacity: 0.7">/ 50000 MB</span>
+                    <span style="opacity: 0.5; font-size: 0.8em">/</span>
+                    <span style="color: #5cd85c">☁️ 0 MB</span>
+                    <span style="opacity: 0.7; font-size: 0.85em">/ 1024 MB</span>
                 `;
             }
         }
