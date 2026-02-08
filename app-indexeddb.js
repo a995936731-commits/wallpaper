@@ -164,7 +164,18 @@ class WallpaperGalleryDB {
         fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
 
         document.querySelectorAll('.tab-btn').forEach(btn => {
+            // 添加 click 事件
             btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const tab = e.target.closest('.tab-btn').dataset.tab;
+                this.switchTab(tab);
+            });
+
+            // 添加 touchend 事件支持移动端
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const tab = e.target.closest('.tab-btn').dataset.tab;
                 this.switchTab(tab);
             });

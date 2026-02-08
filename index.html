@@ -67,6 +67,9 @@
             cursor: pointer;
             font-size: 0.95rem;
             transition: all 0.3s ease;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
         }
 
         .tab-btn:hover {
@@ -77,6 +80,10 @@
         .tab-btn.active {
             color: white;
             background: rgba(102, 126, 234, 0.8);
+        }
+
+        .tab-btn:active {
+            transform: scale(0.95);
         }
 
         .upload-btn {
