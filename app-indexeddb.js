@@ -265,6 +265,9 @@ class WallpaperGalleryDB {
         let uploadedCount = 0;
         let successCount = 0;
 
+        // 显示上传中的加载提示
+        this.showToast(`📤 正在上传 ${files.length} 个文件...`, true);
+
         Array.from(files).forEach(file => {
             const isVideo = file.type.startsWith('video/');
             const isGif = file.type === 'image/gif';
@@ -295,6 +298,7 @@ class WallpaperGalleryDB {
                 if (uploadedCount === this.uploadingCount) {
                     this.showToast(`✅ 成功上传 ${successCount} 个文件！`);
                     this.uploadingCount = 0;
+                }
                 }
             };
 
@@ -604,6 +608,23 @@ class WallpaperGalleryDB {
         container.classList.add('active');
         document.body.style.overflow = 'hidden';
 
+        // 调用浏览器全屏 API（移动端真全屏）
+        if (container.requestFullscreen) {
+            container.requestFullscreen().catch(err => {
+                console.log('全屏API调用失败:', err);
+            });
+        } else if (container.webkitRequestFullscreen) {
+            // Safari 支持
+            container.webkitRequestFullscreen().catch(err => {
+                console.log('Safari全屏API调用失败:', err);
+            });
+        } else if (container.mozRequestFullScreen) {
+            // Firefox 支持
+            container.mozRequestFullScreen().catch(err => {
+                console.log('Firefox全屏API调用失败:', err);
+            });
+        }
+
         this.startTimeUpdate();
     }
 
@@ -619,8 +640,15 @@ class WallpaperGalleryDB {
 
         this.stopTimeUpdate();
 
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
+        // 退出浏览器全屏（兼容多种浏览器）
+        if (document.exitFullscreen) {
+            document.exitFullscreen().catch(err => console.log('退出全屏失败:', err));
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
         }
     }
 
@@ -970,13 +998,21 @@ class WallpaperGalleryDB {
         }
     }
 
-    showToast(message) {
+    showToast(message, showLoading = false) {
         const existingToasts = document.querySelectorAll('.toast');
         existingToasts.forEach(t => t.remove());
 
         const toast = document.createElement('div');
         toast.className = 'toast';
-        toast.textContent = message;
+
+        if (showLoading) {
+            const spinner = document.createElement('div');
+            spinner.className = 'loading-spinner';
+            toast.appendChild(spinner);
+        }
+
+        const textNode = document.createTextNode(message);
+        toast.appendChild(textNode);
         document.body.appendChild(toast);
 
         setTimeout(() => {
