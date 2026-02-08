@@ -2,12 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1a1a1a">
-    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的壁纸库 - 在线壁纸工具</title>
     <style>
         * {
@@ -21,9 +16,6 @@
             background: #1a1a1a;
             min-height: 100vh;
             overflow-x: hidden;
-            /* 支持安全区域 */
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
         }
 
         /* 顶部导航栏 */
@@ -41,10 +33,6 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 30px;
-            /* 支持刘海屏 */
-            padding-top: env(safe-area-inset-top);
-            padding-left: max(30px, env(safe-area-inset-left));
-            padding-right: max(30px, env(safe-area-inset-right));
         }
 
         .navbar-title {
@@ -372,16 +360,14 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
-            /* 支持移动端真正全屏 */
-            width: 100dvw;  /* 动态视口宽度 */
-            height: 100dvh; /* 动态视口高度 */
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
             background: #000;
             z-index: 9999;
-            /* 覆盖安全区域 */
-            padding: 0;
-            margin: 0;
+            touch-action: none;
+            user-select: none;
         }
 
         .fullscreen-container.active {
@@ -736,18 +722,9 @@
         <video class="fullscreen-media" id="fullscreenVideo" loop muted autoplay></video>
     </div>
 
-    <!-- IndexedDB 版本（大容量支持 + 七牛云存储） -->
+    <!-- IndexedDB 版本（大容量支持 + Supabase 云存储） -->
     <script src="indexeddb-storage.js"></script>
     <script src="supabase-sync.js"></script>
     <script src="app-indexeddb.js"></script>
-
-    <!-- PWA Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('✅ Service Worker 已注册:', reg))
-                .catch(err => console.log('❌ Service Worker 注册失败:', err));
-        }
-    </script>
 </body>
 </html>
