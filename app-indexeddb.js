@@ -297,15 +297,34 @@ class WallpaperGalleryDB {
 
                     this.fitModes[wallpaper.id] = 'contain';
 
-                    // 显示单个文件上传进度
+                    // 步骤 1: 上传到本地
                     this.showToast(`📤 正在上传 ${file.name}...`, true);
 
-                    await this.addWallpaper(wallpaper);
+                    await this.addWallpaperLocal(wallpaper);
                     successCount++;
                     uploadedCount++;
 
+                    // 步骤 2: 本地上传成功
+                    this.showToast(`✅ ${file.name} 上传成功`);
+
+                    // 步骤 3: 同步到云端（异步，不阻塞）
+                    if (this.cloudSync && this.cloudSync.enabled) {
+                        setTimeout(() => {
+                            this.showToast(`☁️ 正在同步到�端...`, true);
+                            this.cloudSync.autoSyncToCloud().then(syncResult => {
+                                if (syncResult && syncResult.success) {
+                                    this.showToast(`✅ 云端同步成功`);
+                                } else {
+                                    this.showToast(`⚠️ 云端同步失败，但本地已保存`);
+                                }
+                            }).catch(err => {
+                                console.error('云端同步失败:', err);
+                                this.showToast(`⚠️ 云端同步失败，但本地已保存`);
+                            });
+                        }, 500);
+                    }
+
                     if (uploadedCount === this.uploadingCount) {
-                        this.showToast(`✅ 成功上传 ${successCount} 个文件！`);
                         this.uploadingCount = 0;
                     }
                 } catch (error) {
@@ -326,7 +345,8 @@ class WallpaperGalleryDB {
         if (e.target) e.target.value = '';
     }
 
-    async addWallpaper(wallpaper) {
+    // 只保存到本地，不同步云端
+    async addWallpaperLocal(wallpaper) {
         try {
             console.log('正在保存壁纸到 IndexedDB:', wallpaper.name, wallpaper.type);
             await this.storage.saveWallpaper(wallpaper);
@@ -346,6 +366,15 @@ class WallpaperGalleryDB {
 
             this.render();
             await this.updateStorageEstimate();
+        } catch (error) {
+            console.error('保存壁纸失败:', error);
+            throw error;
+        }
+    }
+
+    async addWallpaper(wallpaper) {
+        try {
+            await this.addWallpaperLocal(wallpaper);
 
             // 同步到云端（等待完成，确保数据安全）
             if (this.cloudSync && this.cloudSync.enabled) {
@@ -355,28 +384,30 @@ class WallpaperGalleryDB {
                     console.log('✅ 壁纸已同步到云端');
                 } else {
                     console.error('⚠️ 云端同步失败，但本地已保存');
-                    // 不抛出错误，让用户知道本地已保存
                 }
             }
         } catch (error) {
             console.error('保存壁纸失败:', error);
-            throw error; // 抛出错误让上层处理
+            throw error;
         }
     }
 
     async deleteWallpaper(id, type) {
         try {
-            // 先找到要删除的壁纸对象
-            const wallpaper = type === 'image'
-                ? this.staticWallpapers.find(w => w.id === id)
-                : this.dynamicWallpapers.find(w => w.id === id);
+            // 从两个数组中查找并删除（不依赖 type 参数）
+            const staticIndex = this.staticWallpapers.findIndex(w => w.id === id);
+            const dynamicIndex = this.dynamicWallpapers.findIndex(w => w.id === id);
+
+            // 步骤 1: 删除本地数据
+            this.showToast('🗑️ 正在删除...', true);
 
             await this.storage.deleteWallpaper(id);
 
-            if (type === 'image') {
-                this.staticWallpapers = this.staticWallpapers.filter(w => w.id !== id);
-            } else {
-                this.dynamicWallpapers = this.dynamicWallpapers.filter(w => w.id !== id);
+            if (staticIndex !== -1) {
+                this.staticWallpapers.splice(staticIndex, 1);
+            }
+            if (dynamicIndex !== -1) {
+                this.dynamicWallpapers.splice(dynamicIndex, 1);
             }
 
             delete this.fitModes[id];
@@ -386,16 +417,29 @@ class WallpaperGalleryDB {
             this.render();
             await this.updateStorageEstimate();
             this.updateSelectedCount();
-            this.showToast('壁纸已删除');
 
-            // 同步到云端（等待完成，确保数据安全）
+            // 步骤 2: 本地删除成功
+            this.showToast('✅ 壁纸已删除');
+
+            // 步骤 3: 同步到云端（异步）
             if (this.cloudSync && this.cloudSync.enabled) {
-                await this.cloudSync.autoSyncToCloud();
-                console.log('✅ 删除已同步到云端');
+                setTimeout(() => {
+                    this.showToast('☁️ 正在同步到云端...', true);
+                    this.cloudSync.autoSyncToCloud().then(syncResult => {
+                        if (syncResult && syncResult.success) {
+                            this.showToast('✅ 云端同步成功');
+                        } else {
+                            this.showToast('⚠️ 云端同步失败');
+                        }
+                    }).catch(err => {
+                        console.error('云端同步失败:', err);
+                        this.showToast('⚠️ 云端同步失败');
+                    });
+                }, 500);
             }
         } catch (error) {
             console.error('删除失败:', error);
-            this.showToast('删除失败');
+            this.showToast('❌ 删除失败');
         }
     }
 
