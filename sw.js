@@ -1,5 +1,5 @@
 // Service Worker - 离线缓存支持
-const CACHE_NAME = 'wallpaper-gallery-v1';
+const CACHE_NAME = 'wallpaper-gallery-v2'; // 更新版本号
 const urlsToCache = [
   '/wallpaper-gallery/',
   '/wallpaper-gallery/index.html',
@@ -48,9 +48,13 @@ self.addEventListener('activate', event => {
 
 // 拦截网络请求，优先使用缓存
 self.addEventListener('fetch', event => {
-  // 只缓存同源请求，跳过 Supabase 等外部 API
-  if (!event.request.url.startsWith(self.location.origin)) {
-    return;
+  const url = event.request.url;
+  const isOrigin = url.startsWith(self.location.origin);
+  const isSupabaseMedia = url.includes('supabase.co/storage/v1/object/public');
+
+  // 只处理网页文件和 Supabase 媒体文件
+  if (!isOrigin && !isSupabaseMedia) {
+    return; // 跳过其他外部请求（如 API 调用）
   }
 
   event.respondWith(
@@ -66,22 +70,27 @@ self.addEventListener('fetch', event => {
         console.log('[Service Worker] 从网络加载:', event.request.url);
         return fetch(event.request).then(response => {
           // 检查是否是有效响应
-          if (!response || response.status !== 200 || response.type !== 'basic') {
+          if (!response || response.status !== 200) {
             return response;
           }
 
-          // 克隆响应并缓存
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseToCache);
-          });
+          // 只缓存成功的响应
+          // 对于跨域请求（Supabase），response.type 是 'opaque' 或 'cors'
+          if (response.type === 'basic' || response.type === 'cors') {
+            // 克隆响应并缓存
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+              console.log('[Service Worker] 已缓存:', event.request.url);
+            });
+          }
 
           return response;
         });
       })
       .catch(error => {
         console.error('[Service Worker] 请求失败:', error);
-        // 可以返回一个离线页面
+        // 返回离线提示
         return new Response('离线状态，无法加载资源', {
           status: 503,
           statusText: 'Service Unavailable'
