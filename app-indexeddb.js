@@ -279,6 +279,23 @@ class WallpaperGalleryDB {
         document.getElementById('dynamicSection').classList.toggle('hidden', tab !== 'dynamic');
     }
 
+    // 将图片压缩并转换为 WebP 格式
+    async compressToWebP(dataUrl, quality = 0.85) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/webp', quality));
+            };
+            img.onerror = () => resolve(dataUrl); // 失败时返回原图
+            img.src = dataUrl;
+        });
+    }
+
     handleFileSelect(e) {
         const files = e.target?.files || e.dataTransfer?.files;
         if (!files || files.length === 0) return;
@@ -301,10 +318,23 @@ class WallpaperGalleryDB {
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
+                    let srcData = event.target.result;
+                    let fileName = file.name;
+
+                    // 图片自动压缩转换为 WebP（GIF 和视频不处理）
+                    if (isImage) {
+                        this.showToast(`🔄 正在压缩 ${file.name}...`, true);
+                        const originalSize = Math.round(srcData.length * 0.75 / 1024);
+                        srcData = await this.compressToWebP(srcData);
+                        const newSize = Math.round(srcData.length * 0.75 / 1024);
+                        fileName = file.name.replace(/\.[^.]+$/, '.webp');
+                        console.log(`✅ 压缩完成: ${originalSize}KB → ${newSize}KB (${Math.round((1 - newSize/originalSize)*100)}% 减少)`);
+                    }
+
                     const wallpaper = {
                         id: Date.now() + Math.random(),
-                        src: event.target.result,
-                        name: file.name,
+                        src: srcData,
+                        name: fileName,
                         type: (isVideo || isGif) ? 'video' : 'image',
                         uploadDate: new Date().toISOString()
                     };
@@ -312,14 +342,14 @@ class WallpaperGalleryDB {
                     this.fitModes[wallpaper.id] = 'contain';
 
                     // 步骤 1: 上传到本地
-                    this.showToast(`📤 正在上传 ${file.name}...`, true);
+                    this.showToast(`📤 正在保存 ${fileName}...`, true);
 
                     await this.addWallpaperLocal(wallpaper);
                     successCount++;
                     uploadedCount++;
 
                     // 步骤 2: 本地上传成功
-                    this.showToast(`✅ ${file.name} 上传成功`);
+                    this.showToast(`✅ ${fileName} 上传成功`);
 
                     // 步骤 3: 同步到云端（异步，不阻塞）
                     if (this.cloudSync && this.cloudSync.enabled) {
@@ -344,7 +374,7 @@ class WallpaperGalleryDB {
                 } catch (error) {
                     console.error('上传失败:', error);
                     uploadedCount++;
-                    this.showToast(`❌ ${file.name} 上传失败！`);
+                    this.showToast(`❌ ${fileName || file.name} 上传失败！`);
                 }
             };
 
