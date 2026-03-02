@@ -322,13 +322,18 @@ class WallpaperGalleryDB {
                     let fileName = file.name;
 
                     // 图片自动压缩转换为 WebP（GIF 和视频不处理）
-                    if (isImage) {
+                    // 跳过：已经是 WebP 且小于 500KB，避免二次有损压缩损失画质
+                    const isAlreadyWebP = file.type === 'image/webp';
+                    const isSmallFile = file.size < 500 * 1024;
+                    if (isImage && !(isAlreadyWebP && isSmallFile)) {
                         this.showToast(`🔄 正在压缩 ${file.name}...`, true);
-                        const originalSize = Math.round(srcData.length * 0.75 / 1024);
+                        const originalSize = Math.round(file.size / 1024);
                         srcData = await this.compressToWebP(srcData);
                         const newSize = Math.round(srcData.length * 0.75 / 1024);
                         fileName = file.name.replace(/\.[^.]+$/, '.webp');
                         console.log(`✅ 压缩完成: ${originalSize}KB → ${newSize}KB (${Math.round((1 - newSize/originalSize)*100)}% 减少)`);
+                    } else if (isImage) {
+                        console.log(`⏭️ 跳过压缩: ${file.name} 已是 WebP 且较小 (${Math.round(file.size/1024)}KB)`);
                     }
 
                     const wallpaper = {
